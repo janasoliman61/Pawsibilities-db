@@ -1,13 +1,20 @@
 // routes/pets.js
 const express = require('express');
-const router = express.Router();
-const petsController = require('../controllers/petsController');
+const router  = express.Router();
+const petsCtrl = require('../controllers/petsController');
+//(below existing routes)
+const matchCtrl = require('../controllers/matchController');
+router.post('/:petId/like/:targetId', matchCtrl.likePet);
 
-router.post('/petregister',petsController.petregister);
-router.get('/pets', petsController.getAllPets);
-router.get('/pets:petID', petsController.getPet);
-router.put('/pets:petID', petsController.petUpdate);
-router.delete('/pets:petID', petsController.deletepet);
 
+// register, CRUD
+router.post('/petregister', petsCtrl.petregister);
+router.get('/',               petsCtrl.getAllPets);
+router.get('/:petId',         petsCtrl.getPet);
+router.put('/:petId',         petsCtrl.petUpdate);
+router.delete('/:petId',      petsCtrl.deletepet);
+
+// ── New matchmaking route ────────────────────────────────────
+router.get('/:petId/matches', petsCtrl.getMatches);
 
 module.exports = router;

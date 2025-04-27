@@ -1,39 +1,41 @@
 // server.js
 require('dotenv').config();
-const express = require('express');
+const express  = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
+const cors     = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-// Middleware
+// ─── MIDDLEWARE ─────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB
+// ─── DATABASE ───────────────────────────────────────────
 mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('✅ Connected to MongoDB'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
 
-// Import and use routes
+// ─── ROUTES ─────────────────────────────────────────────
 const userRoutes = require('./routes/users');
-const petsRoutes = require('./routes/pets');
-app.use('/users', userRoutes, petsRoutes);
+const petRoutes  = require('./routes/pets');
 
-// A basic route
+// Mount the routers under distinct base paths:
+app.use('/api/users', userRoutes);
+app.use('/api/pets',  petRoutes);
+
+// ─── HEALTH CHECK ───────────────────────────────────────
 app.get('/', (req, res) => {
-  res.send('Backend server is running');
+  res.send('🐾 Pawsibilities API is up and running!');
 });
 
-// Error handling middleware
+// ─── ERROR HANDLER ──────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: err.message });
+  res.status(err.status || 500).json({ error: err.message });
 });
 
-
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server listening on port ${PORT}`);
 });
