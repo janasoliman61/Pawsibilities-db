@@ -34,7 +34,8 @@ exports.petregister = async (req, res, next)=>{
   };
   exports.petUpdate = async (req, res,next) => {
     try{
-        const updatedpet = await Pet.findByIdAndUpdate(req.params.petId);
+        const pet = await Pet.findByIdAndUpdate(req.params.petId);
+        updatedpet = req.body.Name;
         if(!updatedpet) res.status(404).json({message: "Pet Not Found"});
         res.json({message: "Pet Updated"});
     }catch(err){
