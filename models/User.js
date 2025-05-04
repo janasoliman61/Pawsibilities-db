@@ -36,6 +36,11 @@ const userSchema = new mongoose.Schema({
       password:  { type: String, required: true },
       resetPasswordToken:   String,
       resetPasswordExpires: Date,
+
+      twoFactorEnabled : {type : Boolean, default : false},
+      twoFactorCode: {type : String, default : null},
+      twoFactorCodeExpires: {type: Date, default: null}
+
 });
 
 userSchema.index({ resetPasswordExpires: 1 }, { expireAfterSeconds: 0 });
