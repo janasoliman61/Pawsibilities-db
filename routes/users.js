@@ -9,15 +9,9 @@ router.post('/register', userController.register);
 router.post('/login', userController.login);
 router.post('/forgot-password', userController.forgotPassword);
 router.post('/reset-password',  userController.resetPassword);
-router.post('/2fa/send-code', auth , ctl.send2FACode);
-router.post('/2fa/verify-code', auth , ctl.verify2FASetup)
-// 2FA setup (must be logged in)
-router.post('/2fa/send-code',     auth, ctl.send2FACode);
-router.post('/2fa/verify-setup',  auth, ctl.verify2FASetup);
-
-// 2FA login (no auth header yet)
-router.post('/login/2fa',         ctl.verifyLogin2FA);
-
+router.post('/2fa/send-code', auth,  userController.send2FACode);//hayeb3at el code lel mail awel marra 3ashan yeb2a enabled
+router.post('/2fa/verify-code', userController.verifyLogin2FA)// 3ashan ama te3mel log in we yeb3atlak el code yet2aked en enta tamam 
+router.post('/2fa/verify-setup',  auth, userController.verify2FASetup); // 3ashan yet2aked en el code elly ba3ato tamam 
 
 
 module.exports = router;

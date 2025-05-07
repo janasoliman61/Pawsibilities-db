@@ -1,112 +1,157 @@
 // controllers/userController.js
-const User = require('../models/User');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const Pet = require('../models/Pet');
-const crypto = require('crypto');
-const sendEmail = require('../utils/sendEmail');
-const nodemailer = require('nodemailer');
-const { text } = require('stream/consumers');
+require('dotenv').config();
+const User       = require('../models/User');
+const bcrypt     = require('bcryptjs');
+const jwt        = require('jsonwebtoken');
+const Pet        = require('../models/Pet');
+const crypto     = require('crypto');
+const sendEmail  = require('../utils/sendEmail');
+const mailer     = require('../config/mailer');
 
+// ── REGISTER ──────────────────────────────────────────────────────────
+// controllers/userController.js
 exports.register = async (req, res, next) => {
   try {
+    // 1) Grab the incoming data
     const {
-      firstName, lastName, userName,
-      gender, address, phone, email, password
+      firstName,
+      lastName,
+      userName,
+      gender,
+      address,
+      phone,
+      email,
+      password   // ← raw password
     } = req.body;
 
-    const hashed = await bcrypt.hash(password, 10);
+    console.log('Register body:', { email, password });
+
+    // 2) Create the user with raw password
+    //    The mongoose pre('save') hook in models/User.js will hash this once.
     const user = new User({
-      firstName, lastName, userName,
-      gender, address, phone, email,
-      password: hashed
+      firstName,
+      lastName,
+      userName,
+      gender,
+      address,
+      phone,
+      email,
+      password    // raw, not pre-hashed here
     });
+
     await user.save();
+
     res.status(201).json({ message: 'User registered' });
   } catch (err) {
     next(err);
   }
 };
 
-exports.login = async (req, res, next ) =>{
-  try{
-    // law ma3andoosh 2 factor haneb3atlo token 3ady
-    const {email,password} = req.body;
-    const user  = await User.findOne({email});
 
-    if(!user){
-      res.status(404).json({message:"email not found "});
-    }
-    const match = bcrypt.compare(password, user.password);
-    if(!match){
-      res.status(404).json({message:"invalid password "});
-    }
-    if(!user.twoFactorEnabled){
-      const token = jwt.sign({userId : user._id}, process.env.JWT_SECRET,{expiresIn:"1h"}) ;
-      return res.json({token});
+// ── LOGIN (handles 2FA) ─────────────────────────────────────────────────
+exports.login = async (req, res, next) => {
+  try {
+    // 1) Grab credentials
+    const { email, password } = req.body;
+
+    // 2) Find the user
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    const code = Math.floor(100000+Math.random()*90000);
+    // 3) Compare plain password against the stored hash
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // 4a) If 2FA is NOT enabled, issue JWT immediately
+    if (!user.twoFactorEnabled) {
+      const token = jwt.sign(
+        { userId: user._id },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
+      return res.json({ token });
+    }
+
+    // 4b) If 2FA IS enabled, generate & email a one‐time code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
     const hash = await bcrypt.hash(code, 10);
-    user.twoFactorCodeExpires = Date().now + 10*60*1000 // 10--> minuts ,60-> seconds , 1000 -> milli seconds ya3ny el rakam lazem yetla3 bel milli secs
+
+    user.twoFactorCode        = hash;
+    user.twoFactorCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
-    await transporter.sendEmail({
-      from: `"Pawsibilities "<${process.env.GMAIL_USER}>`,
-      to: user.email,
-      subject: "Your Verification Code",
-      text: 'Your verification code is ${code}'
+    await mailer.sendMail({
+      from:    `"Pawsibilities" <${process.env.GMAIL_USER}>`,
+      to:       user.email,
+      subject:  'Your Pawsibilities Login Code',
+      text:     `Your verification code is: ${code}`
     });
 
-    res.json({twoFactorEnabled: true, message:"enter the code emailed to you "});
+    // 5) Tell the client to prompt for the OTP
+    res.json({
+      requires2FA: true,
+      message:     'Enter the code we just emailed you.'
+    });
 
-  }catch(err){
+  } catch (err) {
     next(err);
   }
 };
 
-exports.verify2fasetup = async (req, res, next) =>{
-try{
-  const { code } = req.body;
-  const email = await User.findById(req.user.userId);
-  if(!user.twoFactorCodeExpires || Date.now() > user.twoFactorCodeExpires){
-    res.status(401).json({message: " code expired"});
-  }
-  const valid = bcrypt.compare(code,user.twoFactorCode);
-  if(!valid){
-    res.status(401).json({message:"invalid code"});
-  }
-  user.twoFactorEnabled = true;
-  user.twoFactorCode = null;
-  user.twoFactorCodeExpires = null;
-  await user.save();
-  res.json({message:" 2fa enabled"});
-}catch(err){
-  next(err);
-}
-};
+// ── SEND 2FA SETUP CODE ────────────────────────────────────────────────
+exports.send2FACode = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-exports.send2facode = async (req,res, next) =>{
-  try{
-    const user = User.findById(req.user.userId);
-    const code = Math.floor(100000+Math.random()*900000).toString();
-    const hash = bcrypt.hash(code,10);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const hash = await bcrypt.hash(code, 10);
     user.twoFactorCode = hash;
-    const twoFactorCodeExpires = Date.now() + 10*60*1000;
+    user.twoFactorCodeExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    await transporter.sendEmail({
-      from: `"Pawsibilities"<$process.env.GMAIL_USER$>`,
-      to:user.email,
-      text: `"Your two factor authentication code is ${code}`,
-      subject:"your 2fa code"
-    })
-    res.json({message: "your code is sent "});
-  }catch(err){
-  next(err);
-}
+    await mailer.sendMail({
+      from:    `"Pawsibilities" <${process.env.GMAIL_USER}>`,
+      to:       user.email,
+      subject:  'Your 2FA Setup Code',
+      text:     `Your setup verification code is: ${code}`
+    });
+
+    res.json({ message: '2FA setup code sent' });
+  } catch (err) {
+    next(err);
+  }
 };
 
+// ── VERIFY 2FA SETUP ──────────────────────────────────────────────────
+exports.verify2FASetup = async (req, res, next) => {
+  try {
+    const { code } = req.body;
+    const user = await User.findById(req.user.userId);
+    if (!user.twoFactorCodeExpires || Date.now() > user.twoFactorCodeExpires) {
+      return res.status(400).json({ message: 'Code expired. Request a new one.' });
+    }
+    const valid = await bcrypt.compare(code, user.twoFactorCode);
+    if (!valid) {
+      return res.status(400).json({ message: 'Invalid code' });
+    }
+
+    user.twoFactorEnabled = true;
+    user.twoFactorCode = undefined;
+    user.twoFactorCodeExpires = undefined;
+    await user.save();
+
+    res.json({ message: '2FA enabled 🎉' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── VERIFY LOGIN 2FA ─────────────────────────────────────────────────
 exports.verifyLogin2FA = async (req, res, next) => {
   try {
     const { email, code } = req.body;
@@ -114,17 +159,15 @@ exports.verifyLogin2FA = async (req, res, next) => {
     if (!user.twoFactorEnabled) {
       return res.status(400).json({ message: '2FA not enabled' });
     }
-
     if (!user.twoFactorCodeExpires || Date.now() > user.twoFactorCodeExpires) {
       return res.status(400).json({ message: 'Code expired' });
     }
     const valid = await bcrypt.compare(code, user.twoFactorCode);
     if (!valid) return res.status(400).json({ message: 'Invalid code' });
 
-    // Issue final JWT
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    user.twoFactorCode        = null;
-    user.twoFactorCodeExpires = null;
+    user.twoFactorCode = undefined;
+    user.twoFactorCodeExpires = undefined;
     await user.save();
 
     res.json({ token });
@@ -133,52 +176,32 @@ exports.verifyLogin2FA = async (req, res, next) => {
   }
 };
 
-
-
+// ── FORGOT & RESET PASSWORD (unchanged) ───────────────────────────────
 exports.forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
-  // always 200:
   if (user) {
     const token = crypto.randomBytes(32).toString('hex');
-    user.resetPasswordToken   = crypto.createHash('sha256').update(token).digest('hex');
-    user.resetPasswordExpires = Date.now() + 3600000; // 1h
+    user.resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
+    user.resetPasswordExpires = Date.now() + 3600000;
     await user.save();
 
     const resetURL = `${process.env.FRONTEND_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
-    await sendEmail({
-      to: email,
-      subject: 'Password Reset',
-      text: `Reset your password via:\n\n${resetURL}`
-    });
+    await sendEmail({ to: email, subject: 'Password Reset', text: `Reset via: ${resetURL}` });
   }
   res.json({ message: 'If that email is registered, you’ll receive reset instructions.' });
 };
 
 exports.resetPassword = async (req, res, next) => {
   const { email, token, newPassword } = req.body;
-  const hashed = crypto.createHash('sha256').update(token).digest('hex');
-  const user = await User.findOne({
-    email,
-    resetPasswordToken:   hashed,
-    resetPasswordExpires: { $gt: Date.now() }
-  });
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+  const user = await User.findOne({ email, resetPasswordToken: hashedToken, resetPasswordExpires: { $gt: Date.now() } });
   if (!user) {
     return res.status(400).json({ message: 'Invalid or expired token.' });
   }
-  user.password = newPassword;
+  user.password = await bcrypt.hash(newPassword, 12);
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
   await user.save();
   res.json({ message: 'Password has been reset.' });
 };
-
-const transpoeter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS
-  }
-});
-
-
