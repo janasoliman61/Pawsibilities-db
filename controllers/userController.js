@@ -6,7 +6,7 @@ const jwt        = require('jsonwebtoken');
 const Pet        = require('../models/Pet');
 const crypto     = require('crypto');
 const sendEmail  = require('../utils/sendEmail');
-const mailer     = require('../config/mailer');
+const mailer   = require('../config/mailer');  
 
 // ── REGISTER ──────────────────────────────────────────────────────────
 // controllers/userController.js
@@ -151,57 +151,96 @@ exports.verify2FASetup = async (req, res, next) => {
   }
 };
 
-// ── VERIFY LOGIN 2FA ─────────────────────────────────────────────────
+// ── FORGOT PASSWORD (OTP) ─────────────────────────────────────────────
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: 'No account with that email.' });
+
+    // generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.twoFactorCode = otp;
+    user.twoFactorCodeExpires = Date.now() + 10*60*1000;
+    await user.save();
+
+    // ← send via your Gmail-based mailer
+    await mailer.sendMail({
+      from:    `"Pawsibilities" <${process.env.GMAIL_USER}>`,
+      to:      email,
+      subject: 'Your password reset code',
+      html:    `<p>Your password reset code is <strong>${otp}</strong>. It expires in 10 minutes.</p>`
+    });
+
+    res.json({ message: 'Reset code sent to your email.' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+// ── RESET PASSWORD (verify OTP + set new) ────────────────────────────
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const user = await User.findOne({
+      email,
+      twoFactorCode: otp,
+      twoFactorCodeExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired code.' });
+    }
+
+    // set & hash new password (your pre-save hook will hash it)
+    user.password = newPassword;
+
+    // clear the OTP fields
+    user.twoFactorCode        = null;
+    user.twoFactorCodeExpires = null;
+
+    await user.save();
+    res.json({ message: 'Password has been reset successfully.' });
+  } catch (err) {
+    next(err);
+  }
+};
+// ── VERIFY 2FA LOGIN CODE ─────────────────────────────────────────────
 exports.verifyLogin2FA = async (req, res, next) => {
   try {
     const { email, code } = req.body;
     const user = await User.findOne({ email });
-    if (!user.twoFactorEnabled) {
-      return res.status(400).json({ message: '2FA not enabled' });
-    }
-    if (!user.twoFactorCodeExpires || Date.now() > user.twoFactorCodeExpires) {
-      return res.status(400).json({ message: 'Code expired' });
-    }
-    const valid = await bcrypt.compare(code, user.twoFactorCode);
-    if (!valid) return res.status(400).json({ message: 'Invalid code' });
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    // 1) user must exist and code not expired
+    if (
+      !user ||
+      !user.twoFactorCodeExpires ||
+      Date.now() > user.twoFactorCodeExpires
+    ) {
+      return res.status(400).json({ message: 'Code expired or invalid.' });
+    }
+
+    // 2) compare code against the hashed one you stored
+    const valid = await bcrypt.compare(code, user.twoFactorCode);
+    if (!valid) {
+      return res.status(400).json({ message: 'Invalid code.' });
+    }
+
+    // 3) clear the code fields
     user.twoFactorCode = undefined;
     user.twoFactorCodeExpires = undefined;
     await user.save();
 
+    // 4) issue a JWT just like in login
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
     res.json({ token });
   } catch (err) {
     next(err);
   }
 };
 
-// ── FORGOT & RESET PASSWORD (unchanged) ───────────────────────────────
-exports.forgotPassword = async (req, res, next) => {
-  const { email } = req.body;
-  const user = await User.findOne({ email });
-  if (user) {
-    const token = crypto.randomBytes(32).toString('hex');
-    user.resetPasswordToken = crypto.createHash('sha256').update(token).digest('hex');
-    user.resetPasswordExpires = Date.now() + 3600000;
-    await user.save();
-
-    const resetURL = `${process.env.FRONTEND_URL}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
-    await sendEmail({ to: email, subject: 'Password Reset', text: `Reset via: ${resetURL}` });
-  }
-  res.json({ message: 'If that email is registered, you’ll receive reset instructions.' });
-};
-
-exports.resetPassword = async (req, res, next) => {
-  const { email, token, newPassword } = req.body;
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-  const user = await User.findOne({ email, resetPasswordToken: hashedToken, resetPasswordExpires: { $gt: Date.now() } });
-  if (!user) {
-    return res.status(400).json({ message: 'Invalid or expired token.' });
-  }
-  user.password = await bcrypt.hash(newPassword, 12);
-  user.resetPasswordToken = undefined;
-  user.resetPasswordExpires = undefined;
-  await user.save();
-  res.json({ message: 'Password has been reset.' });
-};
