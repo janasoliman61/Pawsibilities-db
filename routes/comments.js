@@ -1,9 +1,9 @@
 const express = require('express')
 const router = express.Router()
 const auth = require('../middleware/auth')
-const { addComment, getComments } = require('../controllers/commentsController')
+const commentsController = require('../controllers/commentsController')
 
-router.post('/', auth, addComment)
-router.get('/:postId', auth, getComments)
+router.post('/:id', auth, commentsController.addComment)
+router.get('/:postId', auth, commentsController.getComments)
 
-module.exports = router
+module.exports = router;

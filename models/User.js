@@ -16,7 +16,12 @@ const userSchema = new mongoose.Schema({
 
   twoFactorEnabled: { type: Boolean, default: false },
   twoFactorCode: { type: String, default: null },
-  twoFactorCodeExpires: { type: Date, default: null }
+  twoFactorCodeExpires: { type: Date, default: null },
+
+deviceTokens: [{
+  token: String,
+  addedAt: { type: Date, default: Date.now }
+}],
 
 });
 

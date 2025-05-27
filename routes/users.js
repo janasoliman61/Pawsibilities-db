@@ -13,6 +13,7 @@ router.post('/2fa/verify-code', userController.verifyLogin2FA)// 3ashan ama te3m
 router.post('/2fa/verify-setup',  auth, userController.verify2FASetup); // 3ashan yet2aked en el code elly ba3ato tamam 
 router.post('/forgot-password', userController.forgotPassword);
 router.post('/reset-password',  userController.resetPassword);
+router.post('/devices', auth, userController.addDeviceToken)
 
 
 
