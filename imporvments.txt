@@ -1,0 +1,11 @@
+1. Forget Password - email subscription
+2. Login Function - token management
+3. Preferences - add settings in array
+4. Controllers clean code (extract repeated set of line codes into one API)
+5. Merge match&pets controllers/modules
+
+- user controller ✅
+- pet controller
+- match controller
+
+** intergate with UI
