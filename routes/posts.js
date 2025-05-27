@@ -1,13 +1,14 @@
-const express = require('express')
-const postController = require('../controllers/postController')
-const auth = require('../middleware/auth')
-const router = express.Router()
+// routes/posts.js
+const express            = require('express')
+const router             = express.Router()
+const auth               = require('../middleware/auth')
+const postController     = require('../controllers/postController')
+const reportController   = require('../controllers/reportController')
 
+
+// Like / Unlike
+router.post('/:id/like',      auth, postController.toggleLike)
+router.post('/:id/report', auth, reportController.createReport)
 router.post('/', auth, postController.createPost)
-router.get('/', auth, postController.getFeed)
-router.get('/:id', auth, postController.getPostById)
-router.patch('/:id', auth, postController.updatePost)
-router.delete('/:id', auth, postController.deletePost)
-router.post('/:id/like', auth, postController.toggleLike)
 
 module.exports = router;

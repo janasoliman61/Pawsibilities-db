@@ -244,3 +244,20 @@ exports.verifyLogin2FA = async (req, res, next) => {
   }
 };
 
+
+exports.addDeviceToken = async (req, res) => {
+  try {
+    const { token } = req.body
+    if (!token) return res.status(400).json({ message: 'Token is required' })
+
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $addToSet: { deviceTokens: { token } } },
+      { new: true }
+    )
+    res.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: err.message })
+  }
+}

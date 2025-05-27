@@ -1,20 +1,17 @@
 // middleware/auth.js
-// ─── Simple JWT–based protection middleware ──────────────────────────────
 const jwt = require('jsonwebtoken');
-
 module.exports = (req, res, next) => {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
+  const token = header.split(' ')[1];
   try {
-    // Expect header “Authorization: Bearer <token>”
-    const authHeader = req.header('Authorization');
-    if (!authHeader) throw new Error('No auth header');
-
-    const token = authHeader.split(' ')[1];
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Attach decoded payload to req.user for downstream handlers
-    req.user = payload;
+    console.log('🔥 JWT PAYLOAD:', payload); 
+     req.user = { _id: payload.userId };
     next();
   } catch (err) {
-    res.status(401).json({ message: 'Authentication failed.' });
+    return res.status(401).json({ message: 'Invalid token' });
   }
 };
