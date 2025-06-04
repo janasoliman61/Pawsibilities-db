@@ -21,6 +21,6 @@ module.exports = async (req, res, next) => {
     req.user = user; // ✅ full user object, including _id
     next();
   } catch (err) {
-    res.status(401).json({ message: 'Authentication failed.' });
+    return res.status(401).json({ message: 'Invalid token' });
   }
 };
