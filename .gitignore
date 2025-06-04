@@ -1,3 +1,5 @@
 .env
 pawsibilities-notifications-*.json
 node_modules
+/config/firebase-service-account.json
+model_api/dog_breed_xception.keras

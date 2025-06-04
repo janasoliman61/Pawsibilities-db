@@ -3,10 +3,10 @@ require('dotenv').config();
 const User       = require('../models/User');
 const bcrypt     = require('bcryptjs');
 const jwt        = require('jsonwebtoken');
+const mailer   = require('../config/mailer');
 const Pet        = require('../models/Pet');
 const crypto     = require('crypto');
-const sendEmail  = require('../utils/sendEmail');
-const mailer   = require('../config/mailer');  
+const sendEmail  = require('../utils/sendEmail');  
 
 // ── REGISTER ──────────────────────────────────────────────────────────
 // controllers/userController.js
@@ -80,7 +80,7 @@ exports.login = async (req, res, next) => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const hash = await bcrypt.hash(code, 10);
 
-    user.twoFactorCode        = hash;
+    user.twoFactorCode = hash;
     user.twoFactorCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
@@ -244,3 +244,20 @@ exports.verifyLogin2FA = async (req, res, next) => {
   }
 };
 
+
+exports.addDeviceToken = async (req, res) => {
+  try {
+    const { token } = req.body
+    if (!token) return res.status(400).json({ message: 'Token is required' })
+
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $addToSet: { deviceTokens: { token } } },
+      { new: true }
+    )
+    res.json({ success: true })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ message: err.message })
+  }
+}

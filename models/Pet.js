@@ -4,21 +4,22 @@ const mongoose = require('mongoose');
 const petSchema = new mongoose.Schema({
   petId:    { type: Number },
   Name:     { type: String, required: true },
-  OwnerID:  { type: Number, unique: true },
+  OwnerID:  { type: Number, required: true},
   Age:      { type: Number },
-  color:    { type: String, required: true },
   gender:   { type: String },
   vaccinationStatus: { type: Boolean },
   Photo:    { type: String },
   personalityStatus: { type: String },
   weight:   { type: Number },
+  breed:    { type: String },
+  status: { type: String, enum: ['adoption', 'mating', 'none'], default: 'none' },
 
   // ── New fields for matchmaking ─────────────────────────────────────────────
   location: {
     type: { type: String, enum: ['Point'], default: 'Point' },
     coordinates: {
       type: [Number],      // [ longitude, latitude ]
-      required: true
+      // required: true
     }
   },
   preferences: {

@@ -1,6 +1,5 @@
 // controllers/matchController.js
 const Match = require('../models/match');
-const Pet   = require('../models/Pet');
 
 exports.likePet = async (req, res, next) => {
   try {
