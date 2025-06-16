@@ -1,6 +1,5 @@
 // controllers/petsController.js
 const Pet = require('../models/Pet');
-const detectBreed = require('../utils/breedDetector'); // import your module
 
 
 // GET /api/pets
@@ -42,17 +41,8 @@ exports.petregister = async (req, res, next) => {
 
     let breed = manualBreed || '';
 
-    // Auto-detect breed if not manually provided and photo exists
-    if (!manualBreed && Photo) {
-      try {
-        const result = await detectBreed(Photo);
-        if (result && result.confidence >= 0.5) {
-          breed = result.breed;
-        }
-      } catch (error) {
-        console.warn('🐾 Breed detection failed, manual input allowed.');
-      }
-    }
+    // Note: Automatic breed detection has been removed
+    // Users must provide breed manually
 
     const pet = new Pet({
       petId,

@@ -16,7 +16,6 @@ exports.register = async (req, res, next) => {
     const {
       firstName,
       lastName,
-      userName,
       gender,
       address,
       phone,
@@ -31,7 +30,6 @@ exports.register = async (req, res, next) => {
     const user = new User({
       firstName,
       lastName,
-      userName,
       gender,
       address,
       phone,

@@ -1,26 +1,23 @@
+// middleware/auth.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-
-module.exports = async (req, res, next) => {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer')) {
-    return res.status(401).json({ message: 'No token provided' });
-  }
-  const token = header.split(' ')[1];
+const auth = async (req, res, next) => {
   try {
-    const authHeader = req.header('Authorization');
-    if (!authHeader) throw new Error('No auth header');
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ message: 'No token, authorization denied' });
+    }
 
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await User.findById(decoded.userId);
-    if (!user) throw new Error('User not found');
-
-    req.user = user; // ✅ full user object, including _id
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    req.user = decoded;
+    
     next();
-  } catch (err) {
-    return res.status(401).json({ message: 'Invalid token' });
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(401).json({ message: 'Token is not valid' });
   }
 };
+
+module.exports = auth;

@@ -3,8 +3,7 @@ require('dotenv').config();      // ← loads your .env into process.env
 const express  = require('express');
 const mongoose = require('mongoose');
 const cors     = require('cors');
-const path    = require('path') 
-const path    = require('path') 
+const path    = require('path');
 
 const userRoutes    = require('./routes/users');
 const petsRoutes    = require('./routes/pets');
@@ -12,7 +11,7 @@ const postRoutes    = require('./routes/posts');
 const commentRoutes = require('./routes/comments');
 const lostPetRoutes  = require('./routes/lostPets'); // ✅ IMPORT HERE
 const matchRoutes = require('./routes/matches'); 
-const reportRoutes = require('./routes/reports')
+const reportRoutes = require('./routes/reports');
 
 
 
@@ -37,17 +36,15 @@ app.use('/users',    userRoutes);
 app.use('/pets',     petsRoutes);
 app.use('/posts',    postRoutes);
 app.use('/comments', commentRoutes);
-app.use('/reports', reportRoutes)
+app.use('/reports', reportRoutes);
 app.use('/lostpets',  lostPetRoutes); // ✅ NEW: Lost & Found endpoint
 app.use('/matches', matchRoutes);
-app.use(express.static(path.join(__dirname, 'Admin_Dashboard')))
+app.use(express.static(path.join(__dirname, 'Admin_Dashboard')));
 
 // ─── 4) HOME ROUTE ───────────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.send('🐾 Pawsibilities Backend API is running!');
 });
-app.use('/reports', reportRoutes)
-app.use(express.static(path.join(__dirname, 'Admin_Dashboard')))
 
 // ─── 4) ERROR HANDLER ───────────────────────────────────────────────────
 app.use((err, req, res, next) => {

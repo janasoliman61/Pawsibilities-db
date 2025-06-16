@@ -1,5 +1,4 @@
 const LostPet = require('../models/LostPet');
-const detectBreed = require('../utils/breedDetector');
 
 // Haversine formula to calculate distance in km
 function getDistanceKm(lat1, lon1, lat2, lon2) {
@@ -27,17 +26,8 @@ exports.reportLostPet = async (req, res) => {
     const userId = req.user._id; // from auth middleware
     let breed = manualBreed || '';
 
-    // Try auto-detecting the breed if not entered
-    if (!manualBreed && photoUrl) {
-      try {
-        const result = await detectBreed(photoUrl);
-        if (result && result.confidence >= 0.5) {
-          breed = result.breed;
-        }
-      } catch (err) {
-        console.warn("🐾 Breed detection failed:", err.message);
-      }
-    }
+    // Note: Automatic breed detection has been removed
+    // Users must provide breed manually
 
     // Save to DB
     const newReport = new LostPet({
