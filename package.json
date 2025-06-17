@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": " node  server.js",
-    "start:model": "py model_api/model_api.py",
+    "start:model": "python3 model_api/model_api.py",
     "dev": "concurrently \"nodemon server.js\" \"npm run start:model\""
   },
   "keywords": [],
@@ -19,6 +19,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "firebase-admin": "^13.4.0",
+    "flask": "^0.2.10",
     "form-data": "^4.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.12.1",
@@ -27,6 +28,6 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.10"
   }
 }

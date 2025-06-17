@@ -1,6 +1,5 @@
 const axios = require('axios');
 const fs = require('fs');
-const path = require('path');
 const tmp = require('tmp');
 const FormData = require('form-data');
 
@@ -10,41 +9,55 @@ const FormData = require('form-data');
  * @returns {Promise<{ breed: string, confidence: number }>}
  */
 async function detectBreed(imageUrl) {
+  const tmpFile = tmp.fileSync({ postfix: '.jpg' }); // prepare temp file
+
   try {
-    // === Step 1: Create a temporary file ===
-    const tmpFile = tmp.fileSync({ postfix: '.jpg' }); // creates /tmp/random.jpg
-
-    // === Step 2: Download image to the temp file ===
-    const writer = fs.createWriteStream(tmpFile.name);
-    const response = await axios({
-      method: 'GET',
-      url: imageUrl,
-      responseType: 'stream'
+    // Step 1: Download image as buffer
+    const response = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+      headers: {
+        'User-Agent': 'Mozilla/5.0'
+      }
     });
 
-    response.data.pipe(writer);
+    // Step 2: Check content type
+    const contentType = response.headers['content-type'];
+    if (!contentType || !contentType.startsWith('image')) {
+      throw new Error("Downloaded content is not an image");
+    }
 
-    await new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
-      writer.on('error', reject);
-    });
+    // Step 3: Write image to temporary file
+    fs.writeFileSync(tmpFile.name, response.data);
+    console.log("✅ Image written to:", tmpFile.name);
 
-    // === Step 3: Prepare image and send to Flask ===
+    // Step 4: Prepare form data
     const form = new FormData();
     form.append('file', fs.createReadStream(tmpFile.name));
 
-    const result = await axios.post('http://localhost:5000/predict', form, {
+    // Step 5: Send to Flask model API
+    const result = await axios.post('http://127.0.0.1:5003/predict', form, {
       headers: form.getHeaders(),
     });
 
-    // === Step 4: Clean up temp file and return result ===
-    tmpFile.removeCallback();
+    // Step 6: Return response from model
     return result.data;
 
   } catch (err) {
-    console.error("❌ Error during breed detection:", err.response?.data || err.message);
+    // Log full error response from Flask for debugging
+    if (err.response) {
+      console.error("❌ Error during breed detection:");
+      console.error("Status:", err.response.status);
+      console.error("Data:", err.response.data);
+    } else {
+      console.error("❌ Unexpected error:", err.message);
+    }
     throw new Error("Breed prediction failed");
+
+  } finally {
+    // Always delete temp file
+    tmpFile.removeCallback();
   }
 }
+
 
 module.exports = detectBreed;

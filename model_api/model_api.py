@@ -152,5 +152,7 @@ def predict():
         'confidence': round(confidence, 2)
     })
 
+print(app.url_map)
+
 if __name__ == '__main__':
-    app.run(port=5000)
+    app.run(port=5003)

@@ -1,12 +1,11 @@
 // controllers/petsController.js
 const Pet = require('../models/Pet');
-const detectBreed = require('../utils/breedDetector'); // import your module
-
+const detectBreed = require('../utils/BreedDetector'); // import your module
 
 // GET /api/pets
 exports.getAllPets = async (req, res, next) => {
   try {
-    const pets = await Pet.find();      // ← was findById()
+    const pets = await Pet.find();
     res.json(pets);
   } catch (err) {
     next(err);
@@ -28,50 +27,43 @@ exports.getPet = async (req, res, next) => {
 exports.petregister = async (req, res, next) => {
   try {
     const {
-      petId,
       Name,
-      OwnerID,
       Age,
       gender,
       vaccinationStatus,
       Photo,
-      personalityStatus,
-      weight,
-      breed: manualBreed, // manually provided breed (optional)
-    } = req.body;
-
-    let breed = manualBreed || '';
-
-    // Auto-detect breed if not manually provided and photo exists
-    if (!manualBreed && Photo) {
-      try {
-        const result = await detectBreed(Photo);
-        if (result && result.confidence >= 0.5) {
-          breed = result.breed;
-        }
-      } catch (error) {
-        console.warn('🐾 Breed detection failed, manual input allowed.');
-      }
-    }
-
-    const pet = new Pet({
-      petId,
-      Name,
-      OwnerID,
-      Age,
-      gender,
-      vaccinationStatus,
-      Photo,
-      personalityStatus,
+      personalityTraits,
       weight,
       breed,
-      location: req.body.location  // store either detected or manually provided
+      status,
+      preferences
+    } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const pet = new Pet({
+      Name,
+      OwnerID: user._id,
+      Age,
+      gender,
+      vaccinationStatus,
+      Photo,
+      personalityTraits,
+      weight,
+      breed,
+      status,
+      preferences,
+      location: {
+        type: 'Point',
+        coordinates: user.location.coordinates
+      }
     });
 
     await pet.save();
     res.status(201).json({ message: 'Pet registered successfully', pet });
+
   } catch (err) {
-    console.error('❌ Error registering pet:', err);
     next(err);
   }
 };
@@ -79,6 +71,15 @@ exports.petregister = async (req, res, next) => {
 // PUT /api/pets/:petId
 exports.petUpdate = async (req, res, next) => {
   try {
+    const { personalityTraits } = req.body;
+
+    // ► enforce max-4 personality traits on update
+    if (personalityTraits) {
+      if (!Array.isArray(personalityTraits) || personalityTraits.length > 4) {
+        return res.status(400).json({ error: 'You can select up to 4 personality traits.' });
+      }
+    }
+
     const updatedPet = await Pet.findByIdAndUpdate(
       req.params.petId,
       req.body,
@@ -87,6 +88,10 @@ exports.petUpdate = async (req, res, next) => {
     if (!updatedPet) return res.status(404).json({ message: 'Pet not found' });
     res.json({ message: 'Pet updated', pet: updatedPet });
   } catch (err) {
+    console.error('❌ Error updating pet:', err);
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: err.message });
+    }
     next(err);
   }
 };
@@ -102,7 +107,7 @@ exports.deletepet = async (req, res, next) => {
   }
 };
 
-// ── NEW: GET /api/pets/:petId/matches ───────────────────────────────────
+// GET /api/pets/:petId/matches
 exports.getMatches = async (req, res, next) => {
   try {
     const pet = await Pet.findById(req.params.petId);
@@ -133,8 +138,8 @@ exports.getMatches = async (req, res, next) => {
     };
 
     if (preferredBreeds.length) query.breed = { $in: preferredBreeds };
-    if (preferredSize)    query.size   = preferredSize;
-    if (preferredGender)  query.gender = preferredGender;
+    if (preferredSize) query.size = preferredSize;
+    if (preferredGender) query.gender = preferredGender;
 
     const matches = await Pet.find(query).limit(20);
     res.json({ matches });

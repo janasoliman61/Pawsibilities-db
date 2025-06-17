@@ -1,12 +1,12 @@
 // controllers/userController.js
 require('dotenv').config();
-const User       = require('../models/User');
-const bcrypt     = require('bcryptjs');
-const jwt        = require('jsonwebtoken');
-const mailer   = require('../config/mailer');
-const Pet        = require('../models/Pet');
-const crypto     = require('crypto');
-const sendEmail  = require('../utils/sendEmail');  
+const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const mailer = require('../config/mailer');
+const Pet = require('../models/Pet');
+const crypto = require('crypto');
+const sendEmail = require('../utils/sendEmail');
 
 // ── REGISTER ──────────────────────────────────────────────────────────
 // controllers/userController.js
@@ -16,9 +16,8 @@ exports.register = async (req, res, next) => {
     const {
       firstName,
       lastName,
-      userName,
       gender,
-      address,
+      location,
       phone,
       email,
       password   // ← raw password
@@ -31,9 +30,8 @@ exports.register = async (req, res, next) => {
     const user = new User({
       firstName,
       lastName,
-      userName,
       gender,
-      address,
+      location,
       phone,
       email,
       password    // raw, not pre-hashed here
@@ -85,16 +83,16 @@ exports.login = async (req, res, next) => {
     await user.save();
 
     await mailer.sendMail({
-      from:    `"Pawsibilities" <${process.env.GMAIL_USER}>`,
-      to:       user.email,
-      subject:  'Your Pawsibilities Login Code',
-      text:     `Your verification code is: ${code}`
+      from: `"Pawsibilities" <${process.env.GMAIL_USER}>`,
+      to: user.email,
+      subject: 'Your Pawsibilities Login Code',
+      text: `Your verification code is: ${code}`
     });
 
     // 5) Tell the client to prompt for the OTP
     res.json({
       requires2FA: true,
-      message:     'Enter the code we just emailed you.'
+      message: 'Enter the code we just emailed you.'
     });
 
   } catch (err) {
@@ -115,10 +113,10 @@ exports.send2FACode = async (req, res, next) => {
     await user.save();
 
     await mailer.sendMail({
-      from:    `"Pawsibilities" <${process.env.GMAIL_USER}>`,
-      to:       user.email,
-      subject:  'Your 2FA Setup Code',
-      text:     `Your setup verification code is: ${code}`
+      from: `"Pawsibilities" <${process.env.GMAIL_USER}>`,
+      to: user.email,
+      subject: 'Your 2FA Setup Code',
+      text: `Your setup verification code is: ${code}`
     });
 
     res.json({ message: '2FA setup code sent' });
@@ -161,15 +159,15 @@ exports.forgotPassword = async (req, res, next) => {
     // generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.twoFactorCode = otp;
-    user.twoFactorCodeExpires = Date.now() + 10*60*1000;
+    user.twoFactorCodeExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
 
     // ← send via your Gmail-based mailer
     await mailer.sendMail({
-      from:    `"Pawsibilities" <${process.env.GMAIL_USER}>`,
-      to:      email,
+      from: `"Pawsibilities" <${process.env.GMAIL_USER}>`,
+      to: email,
       subject: 'Your password reset code',
-      html:    `<p>Your password reset code is <strong>${otp}</strong>. It expires in 10 minutes.</p>`
+      html: `<p>Your password reset code is <strong>${otp}</strong>. It expires in 10 minutes.</p>`
     });
 
     res.json({ message: 'Reset code sent to your email.' });
@@ -197,7 +195,7 @@ exports.resetPassword = async (req, res, next) => {
     user.password = newPassword;
 
     // clear the OTP fields
-    user.twoFactorCode        = null;
+    user.twoFactorCode = null;
     user.twoFactorCodeExpires = null;
 
     await user.save();

@@ -5,7 +5,7 @@ async function fetchReports() {
   return res.json()
 }
 
-async function renderReports() {
+async function renderReports() { 
   const reports = await fetchReports()
   const container = document.getElementById('reports')
   container.innerHTML = ''
@@ -19,7 +19,7 @@ async function renderReports() {
     details.innerHTML = `
       <p><strong>Report ID:</strong> ${report._id}</p>
       <p><strong>Post:</strong> ${report.post.description}</p>
-      <p><strong>Reporter:</strong> ${report.reporter.username}</p>
+      <p><strong>Reporter:</strong> ${report.reporter.firstName} ${report.reporter.lastName}</p>
       <p><strong>Reason:</strong> ${report.description}</p>
     `
 

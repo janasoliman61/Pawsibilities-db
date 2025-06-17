@@ -2,12 +2,10 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  userId: { type: Number, unique: true, },
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
-  userName: { type: String, required: true, unique: true },
+  bio: { type: String },
   gender: { type: String, required: true },
-  address: { type: String },
   phone: { type: String },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -18,13 +16,22 @@ const userSchema = new mongoose.Schema({
   twoFactorCode: { type: String, default: null },
   twoFactorCodeExpires: { type: Date, default: null },
 
-deviceTokens: [{
-  token: String,
-  addedAt: { type: Date, default: Date.now }
-}],
+  deviceTokens: [{
+    token: String,
+    addedAt: { type: Date, default: Date.now }
+  }],
 
+  location: {
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: [0, 0]
+    }
+  }
 });
 
+userSchema.set('autoIndex', false);
+userSchema.index({ location: '2dsphere' });
 userSchema.index({ resetPasswordExpires: 1 }, { expireAfterSeconds: 0 });
 
 userSchema.pre('save', async function (next) {
